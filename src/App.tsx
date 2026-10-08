@@ -1,122 +1,156 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
+import "./App.css";
+import { Analizador } from "./logica/Analizador";
+import type { ParametrosEntrada } from "./modelos/ParametrosEntrada";
+import type { Analisis } from "./modelos/Analisis";
+import type { Orden } from "./modelos/Orden";
+import PantallaFormulario from "./pantallas/PantallaFormulario";
+import PantallaResultado from "./pantallas/PantallaResultado";
+import PantallaHistorial from "./pantallas/PantallaHistorial";
+import PantallaOrdenes from "./pantallas/PantallaOrdenes";
+import {
+  cargarAnalisis,
+  guardarAnalisis,
+  cargarOrdenes,
+  guardarOrden,
+  marcarOrdenCompletada,
+} from "./logica/bd";
+
+type Pestania = "formulario" | "resultado" | "historial" | "ordenes";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [analizador] = useState(() => new Analizador());
+  const [pestania, setPestania] = useState<Pestania>("formulario");
+  const [analisisActual, setAnalisisActual] = useState<Analisis | null>(null);
+  const [historial, setHistorial] = useState<Analisis[]>([]);
+  const [ordenes, setOrdenes] = useState<Orden[]>([]);
+  const [cargando, setCargando] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+
+  // Cargar datos de la BD al iniciar
+  useEffect(() => {
+    (async () => {
+      const analisisBD = await cargarAnalisis();
+      setHistorial(analisisBD);
+      const ordenesBD = await cargarOrdenes();
+      setOrdenes(ordenesBD);
+    })();
+  }, []);
+
+  const handleAnalizar = async (params: ParametrosEntrada) => {
+    setCargando(true);
+    setPestania("resultado");
+    setMensaje("");
+
+    const recomendacion = analizador.recomendarLocalmente(params);
+    const nuevoAnalisis = {
+      monto: params.monto,
+      tiempoMeses: params.tiempoMeses,
+      crecimientoEsperado: params.crecimientoEsperado,
+      durabilidad: params.durabilidad,
+      recomendacion,
+      fecha: Date.now(),
+    };
+
+    // Guardar en la BD
+    const guardado = await guardarAnalisis(nuevoAnalisis);
+
+    if (guardado) {
+      setAnalisisActual(guardado);
+      setHistorial([guardado, ...historial]);
+      setMensaje("✅ Análisis guardado en la base de datos");
+    } else {
+      setAnalisisActual({ id: 0, ...nuevoAnalisis });
+      setMensaje("⚠️ No se pudo guardar en la BD, solo en memoria");
+    }
+
+    setCargando(false);
+  };
+
+  const handleRegistrarOrden = async (
+    simbolo: string,
+    monto: number,
+    tiempoMeses: number
+  ) => {
+    const nuevaOrden = {
+      simbolo,
+      monto,
+      tiempoMeses,
+      estado: "PENDIENTE" as const,
+      creadaEn: Date.now(),
+    };
+
+    const guardada = await guardarOrden(nuevaOrden);
+    if (guardada) {
+      setOrdenes([...ordenes, guardada]);
+    }
+  };
+
+  const handleAtenderOrden = async () => {
+    if (ordenes.length === 0) return;
+    const primera = ordenes[0];
+    const ok = await marcarOrdenCompletada(primera.id);
+    if (ok) {
+      setOrdenes(ordenes.slice(1));
+    }
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
+    <div className="app">
+      <header className="header">
+        <h1>Bitcoin IA</h1>
+        <p className="subtitulo-header">
+          Estructuras: Lista · Cola · Pila | BD: Supabase
+        </p>
+      </header>
+
+      {mensaje && <div className="mensaje-bd">{mensaje}</div>}
+
+      <nav className="tabs">
         <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          className={pestania === "formulario" ? "tab activa" : "tab"}
+          onClick={() => setPestania("formulario")}
         >
-          Count is {count}
+          Formulario
         </button>
-      </section>
+        <button
+          className={pestania === "resultado" ? "tab activa" : "tab"}
+          onClick={() => setPestania("resultado")}
+        >
+          Resultado
+        </button>
+        <button
+          className={pestania === "historial" ? "tab activa" : "tab"}
+          onClick={() => setPestania("historial")}
+        >
+          Historial (Pila) · {historial.length}
+        </button>
+        <button
+          className={pestania === "ordenes" ? "tab activa" : "tab"}
+          onClick={() => setPestania("ordenes")}
+        >
+          Órdenes (Cola) · {ordenes.length}
+        </button>
+      </nav>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      <main className="contenido">
+        {pestania === "formulario" && (
+          <PantallaFormulario onAnalizar={handleAnalizar} />
+        )}
+        {pestania === "resultado" && (
+          <PantallaResultado analisis={analisisActual} cargando={cargando} />
+        )}
+        {pestania === "historial" && <PantallaHistorial historial={historial} />}
+        {pestania === "ordenes" && (
+          <PantallaOrdenes
+            ordenes={ordenes}
+            onRegistrar={handleRegistrarOrden}
+            onAtender={handleAtenderOrden}
+          />
+        )}
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default App;

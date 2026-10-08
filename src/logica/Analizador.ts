@@ -1,10 +1,10 @@
 import { Lista } from "../estructuras/Lista";
 import { Cola } from "../estructuras/Cola";
 import { Pila } from "../estructuras/Pila";
-import { Cripto } from "../modelos/Cripto";
-import { Orden } from "../modelos/Orden";
-import { Analisis } from "../modelos/Analisis";
-import { ParametrosEntrada } from "../modelos/ParametrosEntrada";
+import type { Cripto } from "../modelos/Cripto";
+import type { Orden } from "../modelos/Orden";
+import type { Analisis } from "../modelos/Analisis";
+import type { ParametrosEntrada } from "../modelos/ParametrosEntrada";
 
 export class Analizador {
   // Lista: catálogo de criptomonedas
